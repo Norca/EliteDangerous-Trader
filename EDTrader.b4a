@@ -1,0 +1,799 @@
+﻿Version=5.8
+NumberOfModules=18
+Module1=Starter
+Module2=DBAdmin
+Module3=GalaxyMaint
+Module4=SystemsMaint
+Module5=StationsMaint
+Module6=StockMarketMaint
+Module7=PricesMaint
+Module8=Splash
+Module9=Functions
+Module10=DBUtils
+Module11=EDTables
+Module12=SQLUtils
+Module13=Elite
+Module14=CommodUpdate
+Module15=Region
+Module16=AnchorDefine
+Module17=Coordinate
+Module18=Math
+Build1=EliteDangerousTrader,b4a.example
+ManifestCode='This code will be applied to the manifest file during compilation.~\n~'You do not need to modify it in most cases.~\n~'See this link for for more information: http://www.basic4ppc.com/forum/showthread.php?p=78136~\n~AddManifestText(~\n~<uses-sdk android:minSdkVersion="4" android:targetSdkVersion="14"/>~\n~<supports-screens android:largeScreens="true" ~\n~    android:normalScreens="true" ~\n~    android:smallScreens="true" ~\n~    android:anyDensity="true"/>)~\n~SetApplicationAttribute(android:icon, "@drawable/icon")~\n~SetApplicationAttribute(android:label, "$LABEL$")~\n~SetApplicationAttribute(android:theme, "@android:style/Theme.Holo")~\n~'End of default text.~\n~
+IconFile=
+NumberOfFiles=24
+File1=Anchors.bal
+File2=blankGalTab.bal
+File3=BlankTab.bal
+File4=CommodUpdate.bal
+File5=DBAdmin.bal
+File6=DemandTab.bal
+File7=FactionTab.bal
+File8=FindTab.bal
+File9=GalacticTab.bal
+File10=GalaxyMaint.bal
+File11=ic.png
+File12=ic_selected.png
+File13=MainV2.bal
+File14=NonTradeTab.bal
+File15=PricesMaint.bal
+File16=RaresTab.bal
+File17=splash.bal
+File18=StationsMaint.bal
+File19=StationTab.bal
+File20=StockMarket.bal
+File21=StockTab.bal
+File22=SupplyTab.bal
+File23=SystemsMaint.bal
+File24=SystemTab.bal
+NumberOfLibraries=8
+Library1=core
+Library2=sql
+Library3=stringutils
+Library4=dialogs
+Library5=tabhostextras
+Library6=excel
+Library7=mlstr
+Library8=mathsupport
+@EndOfDesignText@
+#Region  Project Attributes 
+	#ApplicationLabel: Norca's Elite Dangerous Traders Companion
+	#VersionCode: 11
+	#VersionName: Alpha
+	'SupportedOrientations possible values: unspecified, landscape or portrait.
+	#SupportedOrientations: landscape
+	#CanInstallToExternalStorage: False
+#End Region
+
+' 8. Modify the System, Station creation process so it is one screen (use Tab Host page)		 ==
+'12. Create table to hold Galactic Average prices and provide screen to record / update			 == Table Created and DBAdmin updated
+'16. Reset the Places that BUY and SELL if the view is changed or the Station is changed		 ==
+'17. On dropdown for System Location add the LY distance to name								 ==
+'18. Show Economy of selected Station when Station is selected on front screen					 ==
+'19. Add option to hide commodities from list													 == Added Field to Commodity Table (Called TRADING)
+'20. Re-code the Commodities and StockMarket Entries to use fixed Commodity Code Number			 ==
+
+
+#Region  Activity Attributes 
+	#FullScreen: True
+	#IncludeTitle: False
+#End Region
+
+Sub Process_Globals
+	'These global variables will be declared once when the application starts.
+	'These variables can be accessed from all modules.
+
+	Dim supplyMarketList As List
+	Dim demandMarketList As List
+	Dim raresMarketList As List
+	Dim DBFileSize As Long
+
+End Sub
+
+Sub Globals
+	'These global variables will be redeclared each time the activity is created.
+	'These variables can only be accessed from this module.
+
+	Private btnDBAdmin As Button
+	Private btnSystemsMaint As Button
+	Private btnStationsMaint As Button
+	Private btnStockMaint As Button
+	Private btnExport As Button
+	Private btnGalaxy As Button
+	Private btnExit As Button
+	
+	Private edtMaxDist As EditText
+	
+	Private wbvMarketSupply As WebView
+	Private wbvMarketDemand As WebView
+	Private wbvKnownRares As WebView
+	Private wbvTradeSystemsSup As WebView
+	Private wbvTradeSystemsDem As WebView
+	Private wbvTradeSystemsNon As WebView
+	Private wbvTradeSystemsRares As WebView
+
+	Private spnSystem As Spinner
+	Private spnStation As Spinner
+	Private spnNonItems As Spinner
+	Private spnFindSystem As Spinner
+	
+	Private lblCurrentSystem As Label
+	Private lblCurrentStation As Label
+	Private lblSysEcon As Label
+	Private lblStatEcon As Label
+	Private lblMaxLY As Label
+	Private lblDBSize As Label
+	Private lblSize As Label
+	Private lblAnchorNum As Label
+	Private lblTradeSup As Label
+	Private lblTradeDem As Label
+	Private lblTradeNon As Label
+	Private lblTradeRares As Label
+	Private lblDestination As Label
+	
+	Private thMain As TabHost
+	Private TabManager As TabHostExtras
+	
+	Private Q As String
+
+End Sub
+
+Sub Activity_Create(FirstTime As Boolean)
+
+	DBFileSize = (File.Size(File.DirRootExternal, "EliteTrade.db") / 1024)
+		
+	' Show Splash screen
+	StartActivity(Splash)
+
+	'Load Main Screen
+	Activity.LoadLayout("MainV2")
+	
+	'Load Tab Panel Pages
+	Dim bmp1, bmp2 As Bitmap
+	bmp1 = LoadBitmap(File.DirAssets, "ic.png")
+	bmp2 = LoadBitmap(File.DirAssets, "ic_selected.png")
+	
+	thMain.AddTabWithIcon ("Supply", bmp1, bmp2, "SupplyTab") 'load the layout file of each page
+	thMain.AddTab("Demand", "DemandTab")
+	thMain.AddTab("Non Traded", "NonTradeTab")
+	thMain.AddTab("Known Rares", "RaresTab")
+	thMain.AddTab("Galactic Prices", "GalacticTab")
+	thMain.AddTab("Search", "FindTab")
+
+	TabManager.setTabHeight(thMain,35)
+	TabManager.setTabTextColor(thMain, Starter.TextColour)
+
+	EDTables.DatabaseSetup
+
+	lblSize.Text = DBFileSize & " KB"
+	lblAnchorNum.Text = Starter.AnchorsNumber
+	
+	Functions.SetColours(Activity)
+
+	wbvMarketSupply.LoadHtml("<html><body>Select Station to view data</body></html>")
+	wbvMarketDemand.LoadHtml("<html><body>Select Station to view data</body></html>")
+	wbvKnownRares.LoadHtml("<html><body>Select Station to view data</body></html>")
+	wbvTradeSystemsSup.LoadHtml("<html><body>Select Commodity to view data</body></html>")
+	wbvTradeSystemsDem.LoadHtml("<html><body>Select Commodity to view data</body></html>")
+	wbvTradeSystemsNon.LoadHtml("<html><body>Select Commodity to view data</body></html>")
+	wbvTradeSystemsRares.LoadHtml("<html><body>Select Rare Commodity to view data</body></html>")
+
+	PopulateCurrLocation
+	LoadCurrLocation
+	LoadCurrStation
+	LoadCurrMaxLY
+
+	RaresPopulate
+
+End Sub
+
+Sub Activity_Resume
+	PopulateCurrLocation
+	PopulateAllegTypes
+
+	DBFileSize = (File.Size(File.DirRootExternal, "EliteTrade.db") / 1024)
+	lblSize.Text = DBFileSize & " KB"
+	lblAnchorNum.Text = Starter.AnchorsNumber
+
+End Sub
+
+Sub Activity_Pause (UserClosed As Boolean)
+
+End Sub
+
+#Region Main Screen
+
+#Region Buttons
+
+Sub btnExit_Click
+	Activity.Finish
+End Sub
+
+Sub btnDBAdmin_Click
+	StartActivity("DBAdmin")
+End Sub
+
+Sub btnGalaxy_Click
+	StartActivity("GalaxyMaint")
+End Sub
+
+Sub btnSystemsMaint_Click
+	StartActivity("SystemsMaint")
+End Sub
+
+Sub btnStationsMaint_Click
+	StartActivity("StationsMaint")
+End Sub
+
+Sub btnStockMaint_Click
+	StartActivity("StockMarketMaint")
+End Sub
+
+Sub btnExport_Click
+	ProgressDialogShow("Please wait while data is exported...")
+	Dim i As Int
+	Dim CursSystems, CursStations, CursPrices As Cursor
+	Dim newWorkbook As WritableWorkbook
+	newWorkbook.Initialize(File.DirRootExternal, "EDPrices.xls")
+	Dim sheet1 As WritableSheet
+	Dim sheet2 As WritableSheet
+	Dim sheet3 As WritableSheet
+	sheet1 = newWorkbook.AddSheet("Systems", 0)
+	sheet2 = newWorkbook.AddSheet("Stations", 1)
+	sheet3 = newWorkbook.AddSheet("Prices", 2)
+	' Make list of Systems and save them
+	Q = "SELECT S.SystemName, S.GovDesc, S.AllegDesc, S.EconomyID, S.SpaceX, S.SpaceY, S.SpaceZ, S.ExactLocation FROM Systems S ORDER BY S.SystemName ASC"
+	CursSystems = Starter.SQLExec.ExecQuery(Q)
+	If CursSystems.RowCount > 0 Then
+		For i = 0 To CursSystems.RowCount - 1
+			CursSystems.Position = i
+			Dim cell1, cell2, cell3, cell4, cell5, cell6, cell7, cell8, cell9 As WritableCell
+			cell1.InitializeText(0, i, CursSystems.GetString("SystemName"))
+			cell2.InitializeText(1, i, CursSystems.GetString("GovDesc"))
+			cell3.InitializeText(2, i, CursSystems.GetString("AllegDesc"))
+			cell4.InitializeNumber(3, i, CursSystems.GetInt("EconomyID"))
+			cell5.InitializeText(4, i, Elite.FindEconomyNames(CursSystems.GetInt("EconomyID")))
+			cell6.InitializeNumber(5, i, CursSystems.GetDouble("SpaceX"))
+			cell7.InitializeNumber(6, i, CursSystems.GetDouble("SpaceY"))
+			cell8.InitializeNumber(7, i, CursSystems.GetDouble("SpaceZ"))
+			cell9.InitializeNumber(8, i, CursSystems.GetInt("ExactLocation"))
+			sheet1.AddCell(cell1)
+			sheet1.AddCell(cell2)
+			sheet1.AddCell(cell3)
+			sheet1.AddCell(cell4)
+			sheet1.AddCell(cell5)
+			sheet1.AddCell(cell6)
+			sheet1.AddCell(cell7)
+			sheet1.AddCell(cell8)
+			sheet1.AddCell(cell9)
+		Next
+	End If
+	' Make list of Stations and save them
+	Q = "SELECT SystemName, StationName, StatTypeDesc, EconomyNum, BlackMarketAvailable, ArrivalPoint FROM Stations ORDER BY SystemName ASC, StationName ASC"
+	CursStations = Starter.SQLExec.ExecQuery(Q)
+	If CursStations.RowCount > 0 Then
+		For i = 0 To CursStations.RowCount - 1
+			CursStations.Position = i
+			Dim cell1, cell2, cell3, cell4, cell5, cell6, cell7 As WritableCell
+			cell1.InitializeText(0, i, CursStations.GetString("SystemName"))
+			cell2.InitializeText(1, i, CursStations.GetString("StationName"))
+			cell3.InitializeText(2, i, CursStations.GetString("StatTypeDesc"))
+			cell4.InitializeNumber(3, i, CursStations.GetInt("EconomyNum"))
+			cell5.InitializeText(4, i, Elite.FindEconomyNames(CursStations.GetInt("EconomyNum")))
+			cell6.InitializeNumber(5, i, CursStations.GetInt("BlackMarketAvailable"))
+			cell7.InitializeNumber(6, i, CursStations.GetDouble("ArrivalPoint"))
+			sheet2.AddCell(cell1)
+			sheet2.AddCell(cell2)
+			sheet2.AddCell(cell3)
+			sheet2.AddCell(cell4)
+			sheet2.AddCell(cell5)
+			sheet2.AddCell(cell6)
+			sheet2.AddCell(cell7)
+		Next
+	End If
+	' Make list of Prices and save them
+	Q = "SELECT SystemName, StationName, ComGrpDesc, CommodDesc, StockTypeDesc, StockLevelRank FROM StockMarket ORDER BY SystemName ASC, StationName ASC, ComGrpDesc ASC, CommodDesc ASC"
+	CursPrices = Starter.SQLExec.ExecQuery(Q)
+	If CursPrices.RowCount > 0 Then
+		For i = 0 To CursPrices.RowCount - 1
+			CursPrices.Position = i
+			Dim cell1, cell2, cell3, cell4, cell5, cell6 As WritableCell
+			cell1.InitializeText(0, i, CursPrices.GetString("SystemName"))
+			cell2.InitializeText(1, i, CursPrices.GetString("StationName"))
+			cell3.InitializeText(2, i, CursPrices.GetString("ComGrpDesc"))
+			cell4.InitializeText(3, i, CursPrices.GetString("CommodDesc"))
+			cell5.InitializeText(4, i, CursPrices.GetString("StockTypeDesc"))
+			cell6.InitializeNumber(5, i, CursPrices.GetInt("StockLevelRank"))
+			sheet3.AddCell(cell1)
+			sheet3.AddCell(cell2)
+			sheet3.AddCell(cell3)
+			sheet3.AddCell(cell4)
+			sheet3.AddCell(cell5)
+			sheet3.AddCell(cell6)
+		Next
+	End If
+	newWorkbook.Write
+	newWorkbook.Close
+	CursSystems.Close
+	ProgressDialogHide
+End Sub
+
+#End Region
+
+Sub LoadCurrLocation
+	Dim LocName As String
+	
+	' Set Current System from Database
+	Q = "SELECT SystemName FROM Location WHERE LocationID = 1"
+	LocName = Starter.SQLExec.ExecQuerySingleResult(Q)
+	spnSystem.SelectedIndex = spnSystem.IndexOf(LocName)
+	Starter.CurrLocation = LocName
+	
+	SysEconomy
+	
+End Sub
+
+Sub LoadCurrStation
+	Dim StatName As String
+	
+	'Set Current Station from Database
+	Q = "SELECT StationName FROM Location WHERE LocationID = 1"
+	StatName = Starter.SQLExec.ExecQuerySingleResult(Q)
+	spnStation.SelectedIndex = spnStation.IndexOf(StatName)
+	Starter.CurrStation = StatName
+	
+	StatEconomy
+	
+	FillMarketLists
+
+End Sub
+
+Sub LoadCurrMaxLY
+	Dim MaxDist As Int
+	
+	' Set Current Max LY Trade Distance from Database
+	Q = "SELECT TradeDistance FROM MaxLYTradeDistance WHERE MaxLYID = 1"
+	MaxDist = Starter.SQLExec.ExecQuerySingleResult(Q)
+	edtMaxDist.Text = MaxDist
+	Starter.MaxLYDist = MaxDist
+	
+End Sub
+
+Sub PopulateCurrLocation
+	Dim i As Int
+	Dim CursSystems As Cursor
+	
+	' Systems list
+	Q = "SELECT SystemName FROM Systems WHERE LYfromCurrent <= " & Starter.MaxLYDist & " ORDER BY LYfromCurrent ASC, SystemName ASC"
+	CursSystems = Starter.SQLExec.ExecQuery(Q)
+	spnSystem.Add("Not Set")
+	If CursSystems.RowCount > 0 Then
+		spnSystem.Clear
+		For i = 0 To CursSystems.RowCount - 1
+			CursSystems.Position = i
+			spnSystem.Add(CursSystems.GetString("SystemName"))
+		Next
+	End If
+	spnSystem.SelectedIndex = spnSystem.IndexOf(Starter.CurrLocation)
+	CursSystems.Close
+	
+	PopulateCurrStation
+	
+End Sub
+
+Sub PopulateCurrStation
+	Dim i As Int
+	Dim CursStations,CursStockCount As Cursor
+	
+	' Station List
+	Q = "SELECT StationName FROM Stations WHERE SystemName = ? ORDER BY StationName ASC"
+	CursStations = Starter.SQLExec.ExecQuery2(Q,Array As String(Starter.CurrLocation))
+	spnStation.Add("Not Set")
+	If CursStations.RowCount > 0 Then
+		spnStation.Clear
+		spnStation.Add("Not Set")
+		Q = "SELECT * FROM StockMarket WHERE SystemName = ? AND StationName = ? ORDER BY SystemName ASC, StationName Asc"
+		For i = 0 To CursStations.RowCount - 1
+			CursStations.Position = i
+			CursStockCount = Starter.SQLExec.ExecQuery2(Q,Array As String(Starter.CurrLocation,CursStations.GetString("StationName")))
+			If CursStockCount.RowCount > 0 Then
+				spnStation.Add(CursStations.GetString("StationName"))
+			End If
+			CursStockCount.Close
+		Next
+	End If
+	spnStation.SelectedIndex = spnStation.IndexOf(Starter.CurrStation)
+	CursStations.Close
+	
+End Sub
+
+Sub PopulateNonItems
+	Dim i As Int
+	Dim CursItems As Cursor
+	
+	' Non Tradable Items List
+	Q = "SELECT SM.CommodDesc As [Commodity] FROM StockMarket SM WHERE SM.SystemName = ? AND SM.StationName = ? AND SM.StockTypeDesc = 'Not Tradeable' ORDER BY SM.ComGrpDesc ASC, SM.CommodDesc ASC"
+	CursItems = Starter.SQLExec.ExecQuery2(Q,Array As String(Starter.CurrLocation,Starter.CurrStation))
+	spnNonItems.Add(" ")
+	If CursItems.RowCount > 0 Then
+		spnNonItems.Clear
+		spnNonItems.Add(" ")
+		For i = 0 To CursItems.RowCount - 1
+			CursItems.Position = i
+			spnNonItems.Add(CursItems.GetString("Commodity"))
+		Next
+	End If
+	spnNonItems.SelectedIndex = 0
+	CursItems.Close
+	
+End Sub
+
+Sub MarketLists
+	Q = "SELECT * FROM StockMarket SM WHERE SM.SystemName = ? AND SM.StationName = ? AND SM.StockTypeDesc = 'Supply' ORDER BY SM.StockLevelRank DESC, SM.ComGrpDesc ASC, SM.CommodDesc ASC"
+		supplyMarketList = DBUtils.ExecuteMemoryTable(Starter.SQLExec, Q, Array As String(Starter.CurrLocation,Starter.CurrStation), 0)
+	
+	Q = "SELECT * FROM StockMarket SM WHERE SM.SystemName = ? AND SM.StationName = ? AND SM.StockTypeDesc = 'Demand' ORDER BY SM.StockLevelRank DESC, SM.ComGrpDesc ASC, SM.CommodDesc ASC"
+		demandMarketList = DBUtils.ExecuteMemoryTable(Starter.SQLExec, Q, Array As String(Starter.CurrLocation,Starter.CurrStation), 0)
+	
+	RaresPopulate
+	
+End Sub
+
+Sub FillMarketLists
+	Q = "SELECT SM.ComGrpDesc AS [Commodity Group], SM.CommodDesc AS [Commodity], SL.StockLevelDesc AS [Stock Level] FROM StockMarket SM LEFT JOIN StockLevels SL ON SM.StockLevelRank = SL.StockLevelRank WHERE SM.SystemName = ? AND SM.StationName = ? AND SM.StockTypeDesc = 'Supply' ORDER BY SM.StockLevelRank DESC, SM.ComGrpDesc ASC, SM.CommodDesc ASC"
+	wbvMarketSupply.LoadHtml(DBUtils.ExecuteHtml(Starter.SQLExec,Q,Array As String(Starter.CurrLocation,Starter.CurrStation),0,True))
+
+	Q = "SELECT SM.ComGrpDesc AS [Commodity Group], SM.CommodDesc AS [Commodity], SL.StockLevelDesc AS [Stock Level] FROM StockMarket SM LEFT JOIN StockLevels SL ON SM.StockLevelRank = SL.StockLevelRank WHERE SM.SystemName = ? AND SM.StationName = ? AND SM.StockTypeDesc = 'Demand' ORDER BY SM.StockLevelRank DESC, SM.ComGrpDesc ASC, SM.CommodDesc ASC"
+	wbvMarketDemand.LoadHtml(DBUtils.ExecuteHtml(Starter.SQLExec,Q,Array As String(Starter.CurrLocation,Starter.CurrStation),0,True))
+
+	MarketLists 'Sets the ID lookup list of the commodities
+	
+	PopulateNonItems
+
+End Sub
+
+Sub RaresPopulate
+	Q = "SELECT RR.ComGrpDesc AS [Commodity Group], RR.RareDesc AS [Commodity], RR.RareSystem AS [Star System], RR.RareStation AS [Station], S.LYfromCurrent AS [Distance (LY)] FROM RareCommodities RR LEFT JOIN Systems S ON TRIM(RR.RareSystem) = TRIM(S.SystemName) ORDER BY S.LYfromCurrent ASC, RR.ComGrpDesc ASC"
+	wbvKnownRares.LoadHtml(DBUtils.ExecuteHtml(Starter.SQLExec,Q,Null,0,True))
+
+	Q = "SELECT RR.ComGrpDesc, RR.RareDesc, RR.RareSystem, RR.RareStation, S.LYfromCurrent FROM RareCommodities RR LEFT JOIN Systems S ON TRIM(RR.RareSystem) = TRIM(S.SystemName) ORDER BY S.LYfromCurrent ASC, RR.ComGrpDesc ASC"
+	raresMarketList = DBUtils.ExecuteMemoryTable(Starter.SQLExec, Q, Null, 0)
+	
+End Sub
+
+Sub SysEconomy
+	Dim CursSysType As Cursor
+	'Find Economy of selected System
+	Q = "SELECT EconomyID FROM Systems WHERE SystemName = ?"
+	CursSysType = Starter.SQLExec.ExecQuery2(Q, Array As String(Starter.CurrLocation))
+	If CursSysType.RowCount > 0 Then
+		CursSysType.Position = 0
+		lblSysEcon.Text = Elite.FindEconomy(CursSysType.GetInt("EconomyID"))
+	End If
+	CursSysType.Close
+
+End Sub
+
+Sub StatEconomy
+	Dim CursStatType As Cursor
+	' Find Economy of selected Station
+	Q = "SELECT EconomyNum FROM Stations WHERE StationName = ?"
+	CursStatType = Starter.SQLExec.ExecQuery2(Q, Array As String(Starter.CurrStation))
+	If CursStatType.RowCount > 0 Then
+		CursStatType.Position = 0
+		lblStatEcon.Text = Elite.FindEconomyNames(CursStatType.GetInt("EconomyNum"))
+	End If
+	CursStatType.Close
+
+End Sub
+
+Sub thMain_TabChanged
+	Functions.SetColours(Activity)
+
+End Sub
+
+Sub spnSystem_ItemClick (Position As Int, Value As Object)
+	Starter.CurrLocation = Value
+	LocationSave
+	
+	SysEconomy
+	
+	Starter.CurrStation = "Not Set"
+	lblStatEcon.Text = ""
+	spnStation.SelectedIndex = 0
+
+	wbvMarketSupply.LoadHtml("<html><body>Select Station to view data</body></html>")
+	wbvMarketDemand.LoadHtml("<html><body>Select Station to view data</body></html>")
+	wbvTradeSystemsSup.LoadHtml("<html><body>Select Commodity to view data</body></html>")
+	wbvTradeSystemsDem.LoadHtml("<html><body>Select Commodity to view data</body></html>")
+	wbvTradeSystemsNon.LoadHtml("<html><body>Select Commodity to view data</body></html>")
+
+	PopulateCurrStation
+	
+	spnFindSystem_ItemClick(spnFindSystem.SelectedIndex,spnFindSystem.SelectedItem)
+	spnNonItems.SelectedIndex = 0
+	
+	PopulateCurrLocation
+	
+	Starter.SystemMoves = Starter.SystemMoves + 1
+	If Starter.SystemMoves >= 5 Then
+		Starter.SystemMoves = 0
+		ProgressDialogShow("Please wait anchor locations are being updated...")
+		StartService(AnchorDefine)
+		lblAnchorNum.Text = Starter.AnchorsNumber
+		ProgressDialogHide
+	End If
+	
+End Sub
+
+Sub spnStation_ItemClick (Position As Int, Value As Object)
+	Starter.CurrStation = Value
+	StationSave
+	
+	StatEconomy
+	
+	FillMarketLists
+End Sub
+
+
+Sub edtMaxDist_EnterPressed
+	Starter.MaxLYDist = edtMaxDist.Text
+	DistanceSave
+
+End Sub
+
+#Region Save Data Routines
+
+Sub LocationSave
+	Dim whereclause As Map
+	
+	whereclause.Initialize
+	whereclause.Put("LocationID", 1)
+	DBUtils.UpdateRecord(Starter.SQLExec, "Location", "SystemName", Starter.CurrLocation, whereclause)
+	DBUtils.UpdateRecord(Starter.SQLExec, "Location", "StationName", "", whereclause)
+	
+	Elite.UpdateSysLY
+
+End Sub
+
+Sub StationSave
+	Dim whereclause As Map
+	
+	whereclause.Initialize
+	whereclause.Put("LocationID",1)
+	DBUtils.UpdateRecord(Starter.SQLExec, "Location", "StationName", Starter.CurrStation, whereclause)
+
+End Sub
+
+Sub DistanceSave
+	Dim whereclause As Map
+	
+	whereclause.Initialize
+	whereclause.Put("MaxLYID", 1)
+	DBUtils.UpdateRecord(Starter.SQLExec, "MaxLYTradeDistance", "TradeDistance", Starter.MaxLYDist, whereclause)
+	
+	PopulateCurrLocation
+	
+End Sub
+#End Region
+
+#End Region
+
+#Region Supply Tab Page
+
+Sub wbvMarketSupply_OverrideUrl (Url As String) As Boolean
+	'Prase the row and column numbers from the URL
+	Dim Values() As String
+	Dim Row As Int
+	
+	Values = Regex.Split("[.]", Url.SubString(7))
+	Row = Values(1)
+	
+	Dim Val(10) As String
+	
+	Val = supplyMarketList.Get(Row)
+	
+	FillTradeSystems(Val(5), Val(4), Val(6), "TRADE")
+	
+	lblTradeSup.Text = "Places that BUY - " & Val(4)
+	
+	spnNonItems.SelectedIndex = 0
+
+	Return True 'Don't try to navigate to this URL
+	
+End Sub
+
+#End Region
+
+#Region Demand Tab Page
+
+Sub wbvMarketDemand_OverrideUrl (Url As String) As Boolean
+	'Prase the row and column numbers from the URL
+	Dim Values() As String
+	Dim Row As Int
+	
+	Values = Regex.Split("[.]", Url.SubString(7))
+	Row = Values(1)
+	
+	Dim Val(10) As String
+	
+	Val = demandMarketList.Get(Row)
+	
+	FillTradeSystems(Val(5), Val(4), Val(6), "TRADE")
+	
+	lblTradeDem.Text = "Places that SELL - " & Val(4)
+	
+	spnNonItems.SelectedIndex = 0
+
+	Return True 'Don't try to navigate to this URL
+	
+End Sub
+
+#End Region
+
+#Region Non Traded Tab Page
+
+Sub spnNonItems_ItemClick (Position As Int, Value As Object)
+	FillTradeSystems("Demand",Value,4,"NONTRADE")
+	
+	lblTradeNon.Text = "Places that SELL - " & Value
+End Sub
+
+#End Region
+
+#Region Known Rares Tab Page
+
+Sub wbvKnownRares_OverrideUrl (Url As String) As Boolean
+	'Prase the row and column numbers from the URL
+	Dim Values() As String
+	Dim Row As Int
+	
+	Values = Regex.Split("[.]", Url.SubString(7))
+	Row = Values(1)
+	
+	Dim Val(5) As String
+	
+	Val = raresMarketList.Get(Row)
+	
+	lblTradeRares.Text = "Places that BUY - " & Val(1)
+
+	FillRaresSystems(Val(2))
+	
+	Return True 'Don't try to navigate to this URL
+
+End Sub
+
+Sub FillRaresSystems(RareHome As String)
+	Dim i As Int
+	Dim CursSystems As Cursor
+	Dim CursTest As Cursor
+	Dim Result As Double
+	Dim Result2 As Double
+	Dim record As Map
+	
+	ProgressDialogShow("Please wait while we calculate the rares...")
+	
+	' Create TempRareDist Table
+	If SQLUtils.TableExists(Starter.SQLExec,"TempRareDist") = False Then
+		Q = "CREATE TABLE TempRareDist(TRDID INTEGER PRIMARY KEY, SystemName TEXT, DistLY REAL, LY REAL)"
+		Starter.SQLExec.ExecNonQuery(Q)
+	Else
+		Q = "DELETE FROM TempRareDist"
+		Starter.SQLExec.ExecNonQuery(Q)
+	End If
+	
+	' Systems list
+	Q = "SELECT S.SystemName FROM Systems S WHERE S.LYfromCurrent <= " & Starter.MaxLYDist & " ORDER BY S.SystemName ASC"
+	CursSystems = Starter.SQLExec.ExecQuery(Q)
+	If CursSystems.RowCount > 0 Then
+		record.Initialize
+		For i = 0 To CursSystems.RowCount - 1
+			CursSystems.Position = i
+			Result = Elite.DistanceBetween(CursSystems.GetString("SystemName"),RareHome)
+			Result2 = Elite.DistanceBetween(CursSystems.GetString("SystemName"),Starter.CurrLocation)
+			record.Put("TRDID", Null)
+			record.Put("SystemName", CursSystems.GetString("SystemName"))
+			record.Put("DistLY", Result)
+			record.Put("LY", Result2)
+			SQLUtils.Table_InsertMap(Starter.SQLExec,"TempRareDist",record)
+		Next
+	End If
+	CursSystems.Close
+	
+	Q = "SELECT TRD.SystemName As [Star System], TRD.DistLY As [Dist from Rare (LY)], TRD.LY As [Dist from Current (LY)] FROM TempRareDist TRD WHERE TRD.DistLY >= 100 ORDER BY TRD.LY ASC"
+
+	CursTest = Starter.SQLExec.ExecQuery(Q)
+	If CursTest.RowCount > 0 Then
+		wbvTradeSystemsRares.LoadHtml(DBUtils.ExecuteHtml(Starter.SQLExec,Q,Null,0,False))
+	Else
+		lblTradeRares.Text = "Location of Rare not known unable to plot"
+	End If
+	CursTest.Close
+	
+	DBUtils.DropTable(Starter.SQLExec,"TempRareDist")
+
+	ProgressDialogHide()
+	
+End Sub
+
+#End Region
+
+#Region Galactic Prices Tab Page
+
+#End Region
+
+#Region Search Tab Page
+
+Sub PopulateAllegTypes
+	Dim i As Int
+	Dim CursAlleg As Cursor
+	
+	'Allegiance list
+	Q = "SELECT AllegDesc FROM Allegiance ORDER BY NumOfEntries DESC"
+	CursAlleg = Starter.SQLExec.ExecQuery(Q)
+	spnFindSystem.Add("Not Set")
+	If CursAlleg.RowCount > 0 Then
+		spnFindSystem.Clear
+		spnFindSystem.Add(" ")
+		For i = 0 To CursAlleg.RowCount - 1
+			CursAlleg.Position = i
+			spnFindSystem.Add(CursAlleg.GetString("AllegDesc"))
+		Next
+	End If
+	CursAlleg.Close
+
+End Sub
+
+Sub spnFindSystem_ItemClick (Position As Int, Value As Object)
+	Dim CursFindSys As Cursor
+	
+	Q = "SELECT SystemName, LYfromCurrent, AllegDesc FROM Systems WHERE AllegDesc = '" & Value & "' ORDER BY LYfromCurrent ASC"
+	CursFindSys = Starter.SQLExec.ExecQuery(Q)
+	If CursFindSys.RowCount > 0 Then
+		CursFindSys.Position = 0
+		lblDestination.Text = CursFindSys.GetString("SystemName") & " - " & CursFindSys.GetString("LYfromCurrent") & " Light Years away"
+	Else
+		lblDestination.Text = "<< No Systems Found >>"
+	End If
+	CursFindSys.Close
+	
+End Sub
+
+#End Region
+
+
+
+
+Sub FillTradeSystems(SupDem As String, CommodDesc As String, Lvl As Int, FillType As String)
+	Dim SearchType As String
+	Dim SearchLevel As Int
+	
+	' SearchLevel --- High = 4, Med = 2, Low = 1
+	
+	SearchType = "Supply"
+	If SupDem = "Supply" Then
+		SearchType = "Demand"
+	End If
+	
+	If Lvl = 4 Then
+		SearchLevel = 1
+	Else If Lvl = 2 Then
+		SearchLevel = 2
+	Else If Lvl = 1 Then
+		SearchLevel = 4
+	End If
+		
+	Q = "SELECT SM.SystemName As [Star System], SM.StationName As [Station], S.LYfromCurrent AS [Dist (LY)], SL.StockLevelDesc AS [Stock Level] FROM StockMarket SM LEFT JOIN Systems S ON SM.SystemName = S.SystemName LEFT JOIN StockLevels SL ON SM.StockLevelRank = SL.StockLevelRank WHERE S.ExactLocation = 1 AND S.LYfromCurrent <= " & Starter.MaxLYDist & " AND SM.CommodDesc = ? AND SM.StockTypeDesc = ? AND SM.StockLevelRank >= " & SearchLevel & " ORDER BY SM.StockLevelRank DESC, S.LYfromCurrent ASC"
+	If FillType = "TRADE" Then
+		If SupDem = "Supply" Then
+			wbvTradeSystemsSup.LoadHtml(DBUtils.ExecuteHtml(Starter.SQLExec,Q,Array As String(CommodDesc,SearchType),0,False))
+		Else
+			wbvTradeSystemsDem.LoadHtml(DBUtils.ExecuteHtml(Starter.SQLExec,Q,Array As String(CommodDesc,SearchType),0,False))
+		End If
+	End If
+	If FillType = "NONTRADE" Then
+			wbvTradeSystemsNon.LoadHtml(DBUtils.ExecuteHtml(Starter.SQLExec,Q,Array As String(CommodDesc,SearchType),0,False))
+	End If
+End Sub
+
+

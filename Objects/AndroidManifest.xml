@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	package="b4a.example"
+	android:versionCode="10"
+	android:versionName="Alpha"
+	android:installLocation="internalOnly">
+	
+	<uses-sdk android:minSdkVersion="4" android:targetSdkVersion="14"/>
+	<supports-screens android:largeScreens="true" 
+	    android:normalScreens="true" 
+	    android:smallScreens="true" 
+	    android:anyDensity="true"/>
+	<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+	<uses-permission android:name="android.permission.INTERNET"/>
+	<application
+		android:icon="@drawable/icon"
+		android:label="Norca's Elite Dangerous Traders Companion"
+		android:theme="@android:style/Theme.Holo">
+		<activity
+			android:windowSoftInputMode="stateHidden"
+			android:launchMode="singleTop"
+			android:name=".main"
+			android:label="Norca's Elite Dangerous Traders Companion"
+			android:screenOrientation="landscape">
+			<intent-filter>
+			   <action android:name="android.intent.action.MAIN" />
+			   <category android:name="android.intent.category.LAUNCHER" />
+			</intent-filter>
+			
+		</activity>
+		<service android:name=".starter">
+		</service>
+		<receiver android:name=".starter$starter_BR">
+		</receiver>
+		<activity
+			android:windowSoftInputMode="stateHidden"
+			android:launchMode="singleTop"
+			android:name=".dbadmin"
+			android:label="Norca's Elite Dangerous Traders Companion"
+			android:screenOrientation="landscape">
+		</activity>
+		<activity
+			android:windowSoftInputMode="stateHidden"
+			android:launchMode="singleTop"
+			android:name=".galaxymaint"
+			android:label="Norca's Elite Dangerous Traders Companion"
+			android:screenOrientation="landscape">
+		</activity>
+		<activity
+			android:windowSoftInputMode="stateHidden"
+			android:launchMode="singleTop"
+			android:name=".systemsmaint"
+			android:label="Norca's Elite Dangerous Traders Companion"
+			android:screenOrientation="landscape">
+		</activity>
+		<activity
+			android:windowSoftInputMode="stateHidden"
+			android:launchMode="singleTop"
+			android:name=".stationsmaint"
+			android:label="Norca's Elite Dangerous Traders Companion"
+			android:screenOrientation="landscape">
+		</activity>
+		<activity
+			android:windowSoftInputMode="stateHidden"
+			android:launchMode="singleTop"
+			android:name=".stockmarketmaint"
+			android:label="Norca's Elite Dangerous Traders Companion"
+			android:screenOrientation="landscape">
+		</activity>
+		<activity
+			android:windowSoftInputMode="stateHidden"
+			android:launchMode="singleTop"
+			android:name=".splash"
+			android:label="Norca's Elite Dangerous Traders Companion"
+			android:screenOrientation="landscape">
+		</activity>
+		<activity
+			android:windowSoftInputMode="stateHidden"
+			android:launchMode="singleTop"
+			android:name=".commodupdate"
+			android:label="Norca's Elite Dangerous Traders Companion"
+			android:screenOrientation="landscape">
+		</activity>
+		<service android:name=".anchordefine">
+		</service>
+		<receiver android:name=".anchordefine$anchordefine_BR">
+		</receiver>
+	</application>
+</manifest>
